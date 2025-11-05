@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     INTERVAL_MINUTES: int = Field(..., env="INTERVAL_MINUTES")
     USDT_AMOUNT: int = Field(..., env="USDT_AMOUNT")
     LEVERAGE: int = Field(..., env="LEVERAGE")
+    MGN_MODE: str = Field(..., env="MGN_MODE")
     AI_ENDPOINT: str = Field(..., env="AI_ENDPOINT")
     OKX_APIKEY: str = Field(..., env="OKX_APIKEY")
     OKX_SECRET: str = Field(..., env="OKX_SECRET")

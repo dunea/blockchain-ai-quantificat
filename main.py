@@ -28,23 +28,6 @@ exchange = okx({
 })
 
 
-# 初始化
-async def setup_exchange(exchange: okx, leverage: int, symbol: str):
-    """设置交易所参数"""
-    try:
-        # OKX设置杠杆
-        await exchange.set_leverage(
-            leverage,
-            symbol,
-            {'mgnMode': 'isolated'}  # 'cross'全仓模式，也可用'isolated'逐仓
-        )
-
-        # 设置持仓模式 (双向持仓)
-        await exchange.set_position_mode(False, symbol)
-    except:
-        pass
-
-
 # AI分析结构体
 class SwapDirection(BaseModel):
     signal: Literal['buy', 'sell', 'hold'] = Field(..., description="买卖信号")
@@ -54,12 +37,13 @@ class SwapDirection(BaseModel):
 
 
 class Trade:
-    def __init__(self, exchange: okx, symbol: str, leverage: int, usdt_amount: int, ai_endpoint: str, ai_api_key: str,
-                 ai_base_url: str, ai_model: str):
+    def __init__(self, exchange: okx, symbol: str, leverage: int, usdt_amount: int, mgn_mode: str, ai_endpoint: str,
+                 ai_api_key: str, ai_base_url: str, ai_model: str):
         self._exchange = exchange
         self._symbol = symbol
         self._leverage = leverage
         self._usdt_amount = usdt_amount
+        self._mgn_mode = mgn_mode
         self._ai_endpoint = ai_endpoint
         self._ai_api_key = ai_api_key
         self._ai_base_url = ai_base_url
@@ -78,6 +62,22 @@ class Trade:
             return
         logger.info("\n" + "\n".join(self._log_messages))
         self._log_messages.clear()
+
+    # 初始化
+    async def setup_exchange(self):
+        """设置交易所参数"""
+        try:
+            # OKX设置杠杆
+            await self._exchange.set_leverage(
+                self._leverage,
+                symbol,
+                {'mgnMode': self._mgn_mode}  # 'cross'全仓模式，也可用'isolated'逐仓
+            )
+
+            # 设置持仓模式 (双向持仓)
+            await exchange.set_position_mode(False, symbol)
+        except:
+            pass
 
     # 获取持仓列表
     async def get_position_list(self) -> list[Position]:
@@ -186,7 +186,7 @@ class Trade:
                 self._symbol,
                 'buy',
                 await self.usdt_to_contracts(self._symbol, self._usdt_amount, self._leverage),
-                params={'tag': self._tag}
+                params={'tag': self._tag, 'tdMode': self._mgn_mode}
             )
             self._log(f"{self._symbol} 开多仓结果: {res}")
         elif swap_direction.signal == 'sell':
@@ -195,7 +195,7 @@ class Trade:
                 self._symbol,
                 'sell',
                 await self.usdt_to_contracts(self._symbol, self._usdt_amount, self._leverage),
-                params={'tag': self._tag}
+                params={'tag': self._tag, 'tdMode': self._mgn_mode}
             )
             self._log(f"{self._symbol} 开空仓结果: {res}")
 
@@ -222,12 +222,12 @@ class Trade:
                 self._symbol,
                 'buy',
                 contracts,
-                params={'tag': self._tag}
+                params={'reduceOnly': True, 'tag': self._tag}
             )
             return True
         return False
 
-    # 执行止损（-20%止损、盈利阶梯止盈）
+    # 执行止损（止损、盈利阶梯止盈）
     async def execute_stop_loss(self) -> Optional[Any]:
         # 获取持仓
         position_list = await self.get_position_list()
@@ -242,7 +242,8 @@ class Trade:
         max_pnl_ratio = self._max_pnl / initial_margin
 
         # 判断是否亏损20%以上
-        if pnl_ratio <= -0.2:
+        if pnl_ratio <= -0.1:
+            self._log("亏损 20% 以上, 平仓...")
             res = await self.stop_loss(position)
             self._max_pnl = None
             return res
@@ -285,6 +286,7 @@ class Trade:
 
     # 运行
     async def run(self):
+        await self.setup_exchange()
         await asyncio.gather(
             self.run_deal(settings.INTERVAL_MINUTES),
             self.run_stop_loss(15),
@@ -311,15 +313,12 @@ if __name__ == '__main__':
 
     trades: list[Trade] = []
     for symbol in tracking_symbols:
-        trades.append(Trade(exchange, symbol, settings.LEVERAGE, settings.USDT_AMOUNT, settings.AI_ENDPOINT,
-                            settings.OPENAI_API_KEY, settings.OPENAI_BASE_URL, settings.OPENAI_MODEL))
+        trades.append(
+            Trade(exchange, symbol, settings.LEVERAGE, settings.USDT_AMOUNT, settings.MGN_MODE, settings.AI_ENDPOINT,
+                  settings.OPENAI_API_KEY, settings.OPENAI_BASE_URL, settings.OPENAI_MODEL))
 
 
     async def main():
-        # 初始化
-        for symbol in tracking_symbols:
-            await setup_exchange(exchange, settings.LEVERAGE, symbol)
-
         tasks = [trade.run() for trade in trades]
         await asyncio.gather(*tasks)
 
