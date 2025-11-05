@@ -6,6 +6,11 @@
 
 blockchain-ai-quantificat 是一个基于 Python 的小型项目，结合区块链与 AI/数据处理相关功能（项目具体实现请查看代码文件）。用于演示/开发量化分析或相关服务的原型。
 
+## AI分析代码仓库 + 测试接口文档
+
+- blockchain-analyse Github仓库：https://github.com/dunea/blockchain-analyse
+- AI分析测试接口文档：https://blockchain-analyse.nuoyea.com/docs
+
 ## 主要特性
 
 - 使用 Python 实现的核心逻辑
