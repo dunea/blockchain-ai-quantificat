@@ -28,12 +28,20 @@ exchange = okx({
 })
 
 
-# AI分析结构体
+# AI分析方向结构体
 class SwapDirection(BaseModel):
     signal: Literal['buy', 'sell', 'hold'] = Field(..., description="买卖信号")
     reason: str = Field(..., description="分析理由")
     confidence: Literal['high', 'medium', 'low'] = Field(..., description="信心")
     trend: Literal['rising', 'falling', 'sideways', 'strong_rising', 'strong_falling'] = Field(..., description="趋势")
+
+
+# AI分析止损结构体
+class SwapStopLossTakeProfit(BaseModel):
+    stop_loss: float = Field(..., description="止损价格")
+    take_profit: float = Field(..., description="止盈价格")
+    reason: str = Field(..., description="分析理由")
+    confidence: Literal['high', 'medium', 'low'] = Field(..., description="信心")
 
 
 class Trade:
@@ -48,6 +56,7 @@ class Trade:
         self._ai_api_key = ai_api_key
         self._ai_base_url = ai_base_url
         self._ai_model = ai_model
+        self._init_stop_loss: Optional[float] = None
         self._max_pnl: Optional[float] = None
         self._tag: str = "f1ee03b510d5SUDE"
         self._log_messages: list[str] = []
@@ -162,15 +171,57 @@ class Trade:
             except Exception as e:
                 raise RuntimeError(f"AI分析接口 {self._symbol}: {e}") from e
 
+    # AI分析止损价格
+    async def analyze_stop_loss(
+            self,
+            direction: Literal['long', 'short'],
+            *,
+            entry_price: Optional[float] = None,
+    ) -> SwapStopLossTakeProfit:
+        async with httpx.AsyncClient(timeout=300) as client:
+            params = {
+                'symbol': self._symbol,
+                'leverage': self._leverage,
+                'direction': direction,
+                'timeframes': '1m,5m,15m,30m,1h,4h,1d',
+            }
+            if entry_price:
+                params['entry_price'] = str(entry_price)
+            try:
+                response = await client.get(
+                    url=f'{self._ai_endpoint}/api/v1/analyse/swap-stop-loss/okx',
+                    params=params,
+                    headers={
+                        'OPENAI-API-KEY': self._ai_api_key,
+                        'OPENAI-BASE-URL': self._ai_base_url,
+                        'OPENAI-MODEL': self._ai_model,
+                    }
+                )
+                response.raise_for_status()
+                return SwapStopLossTakeProfit.model_validate(response.json())
+            except Exception as e:
+                raise RuntimeError(f"AI分析止损价格接口 {self._symbol}: {e}") from e
+
     # 执行交易
     async def execute_deal(self) -> Optional[Any]:
         # 获取持仓
         position_list = await self.get_position_list()
         position = self.in_position(position_list, self._symbol)
         if position:
+            # 判断是否需要重新计算初始止损价格
+            if self._init_stop_loss is None:
+                direction = 'short' if position['side'] == 'short' else 'long'
+                entry_price = float(position['entryPrice'])
+                stop_loss = await self.analyze_stop_loss(direction, entry_price=entry_price)
+                self._init_stop_loss = stop_loss.stop_loss
+                self._log(f"{self._symbol} 重新AI分析止损结果: {stop_loss}")
             return None
 
-        # AI分析
+        # 再清理一次，避免手动平仓数据未初始化
+        self._init_stop_loss = None
+        self._max_pnl = None
+
+        # AI分析信号
         swap_direction = await self.analyze()
         if swap_direction.signal == 'hold':
             self._log(f"{self._symbol}: 观望中...")
@@ -178,6 +229,13 @@ class Trade:
             return None
         self._log(f"{self._symbol}: 开始交易...")
         self._log(f"{self._symbol} AI分析结果: {swap_direction}")
+
+        # AI分析止损价
+        if swap_direction.signal == 'buy' or swap_direction.signal == 'sell':
+            direction: Literal['long', 'short'] = 'long' if swap_direction.signal == 'buy' else 'short'
+            stop_loss = await self.analyze_stop_loss(direction)
+            self._init_stop_loss = stop_loss.stop_loss
+            self._log(f"{self._symbol} AI分析止损结果: {stop_loss}")
 
         # 交易
         if swap_direction.signal == 'buy':
@@ -207,7 +265,7 @@ class Trade:
         side = position['side']
         if contracts == 0:
             return None
-        if side == "long":
+        elif side == "long":
             self._log(f"平多止损...")
             await self._exchange.create_market_order(
                 self._symbol,
@@ -215,8 +273,7 @@ class Trade:
                 contracts,
                 params={'reduceOnly': True, 'tag': self._tag}
             )
-            return True
-        if side == "short":
+        elif side == "short":
             self._log(f"平空止损...")
             await self._exchange.create_market_order(
                 self._symbol,
@@ -224,8 +281,13 @@ class Trade:
                 contracts,
                 params={'reduceOnly': True, 'tag': self._tag}
             )
-            return True
-        return False
+        else:
+            return False
+
+        # 清理开仓数据
+        self._max_pnl = None
+        self._init_stop_loss = None
+        return True
 
     # 执行止损（止损、盈利阶梯止盈）
     async def execute_stop_loss(self) -> Optional[Any]:
@@ -235,34 +297,41 @@ class Trade:
         if not position:
             return None
 
+        side = position["side"]
         initial_margin = float(position['initialMargin'])
         pnl = float(position['unrealizedPnl'])
+        mark_price = float(position['markPrice'])
         pnl_ratio = pnl / initial_margin
         self._max_pnl = pnl if self._max_pnl is None else max(self._max_pnl, pnl)
         max_pnl_ratio = self._max_pnl / initial_margin
 
-        # 判断是否亏损20%以上
+        # 判断是否亏损 10% 以上
         if pnl_ratio <= -0.1:
-            self._log("亏损 20% 以上, 平仓...")
-            res = await self.stop_loss(position)
-            self._max_pnl = None
-            return res
+            self._log("亏损 10% 以上, 平仓...")
+            return await self.stop_loss(position)
+
+        # 最高盈利小于 20%
+        elif max_pnl_ratio < 0.2:
+            # 判断是否达到初始止损价格
+            if self._init_stop_loss is not None:
+                if side == "long" and mark_price <= self._init_stop_loss:
+                    self._log(f"根据初始止损价格 {self._init_stop_loss}, 平多仓...")
+                    return await self.stop_loss(position)
+                elif side == "short" and mark_price >= self._init_stop_loss:
+                    self._log(f"根据初始止损价格 {self._init_stop_loss}, 平空仓...")
+                    return await self.stop_loss(position)
 
         # 最高盈利 20% - 100% 之间
         elif max_pnl_ratio >= 0.2 and max_pnl_ratio < 1:
             if pnl <= self._max_pnl * 0.8:
                 self._log("最高盈利 20% - 100% 之间, 回撤 20%, 平仓...")
-                res = await self.stop_loss(position)
-                self._max_pnl = None
-                return res
+                return await self.stop_loss(position)
 
         # 最高盈利 100% 以上
         elif max_pnl_ratio >= 1:
             if pnl <= self._max_pnl * 0.75:
                 self._log("最高盈利 100% 以上, 回撤 25%, 平仓...")
-                res = await self.stop_loss(position)
-                self._max_pnl = None
-                return res
+                return await self.stop_loss(position)
 
     # 运行止损
     async def run_stop_loss(self, interval_second: int = 15):
