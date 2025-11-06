@@ -271,7 +271,7 @@ class Trade:
                 self._symbol,
                 'sell',
                 contracts,
-                params={'reduceOnly': True, 'tag': self._tag}
+                params={'reduceOnly': True, 'tag': self._tag, 'tdMode': self._mgn_mode}
             )
         elif side == "short":
             self._log(f"平空止损...")
@@ -279,7 +279,7 @@ class Trade:
                 self._symbol,
                 'buy',
                 contracts,
-                params={'reduceOnly': True, 'tag': self._tag}
+                params={'reduceOnly': True, 'tag': self._tag, 'tdMode': self._mgn_mode}
             )
         else:
             return False
@@ -305,9 +305,9 @@ class Trade:
         self._max_pnl = pnl if self._max_pnl is None else max(self._max_pnl, pnl)
         max_pnl_ratio = self._max_pnl / initial_margin
 
-        # 判断是否亏损 10% 以上
-        if pnl_ratio <= -0.1:
-            self._log("亏损 10% 以上, 平仓...")
+        # 判断是否亏损 20% 以上
+        if pnl_ratio <= -0.2:
+            self._log("亏损 20% 以上, 平仓...")
             return await self.stop_loss(position)
 
         # 最高盈利小于 20%
