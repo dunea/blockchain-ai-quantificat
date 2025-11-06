@@ -56,6 +56,7 @@ class Trade:
         self._max_pnl: Optional[float] = None
         self._tag: str = "f1ee03b510d5SUDE"
         self._log_messages: list[str] = []
+        self._ai_timeframes = "5m,15m,1h,4h"
 
     # 日志
     def _log(self, msg: str):
@@ -153,7 +154,7 @@ class Trade:
                     params={
                         'symbol': self._symbol,
                         'leverage': self._leverage,
-                        'timeframes': '1m,5m,15m,30m,1h,4h,1d',
+                        'timeframes': self._ai_timeframes,
                         'compare': 3
                     },
                     headers={
@@ -179,7 +180,7 @@ class Trade:
                 'symbol': self._symbol,
                 'leverage': self._leverage,
                 'direction': direction,
-                'timeframes': '1m,5m,15m,30m,1h,4h,1d',
+                'timeframes': self._ai_timeframes,
             }
             if entry_price:
                 params['entry_price'] = str(entry_price)
@@ -354,7 +355,7 @@ class Trade:
         await self.setup_exchange()
         await asyncio.gather(
             self.run_deal(settings.INTERVAL_MINUTES),
-            self.run_stop_loss(30),
+            self.run_stop_loss(15),
         )
 
 
