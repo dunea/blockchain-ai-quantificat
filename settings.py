@@ -13,14 +13,17 @@ if use_secret_env and use_secret_env.lower() == "false":
 class Settings(BaseSettings):
     # 配置
     INTERVAL_MINUTES: int = Field(..., env="INTERVAL_MINUTES")
+    STOP_LOSS_INTERVAL_SECOND: int = Field(..., env="STOP_LOSS_INTERVAL_SECOND")
     USDT_AMOUNT: int = Field(..., env="USDT_AMOUNT")
     LEVERAGE: int = Field(..., env="LEVERAGE")
     MGN_MODE: str = Field(..., env="MGN_MODE")
-    AI_ENDPOINT: str = Field(..., env="AI_ENDPOINT")
+    SYMBOLS: str = Field(..., env="SYMBOLS")
+
     OKX_APIKEY: str = Field(..., env="OKX_APIKEY")
     OKX_SECRET: str = Field(..., env="OKX_SECRET")
     OKX_PASSWORD: str = Field(..., env="OKX_PASSWORD")
 
+    AI_ENDPOINT: str = Field(..., env="AI_ENDPOINT")
     OPENAI_API_KEY: str = Field(..., env="OPENAI_API_KEY")
     OPENAI_BASE_URL: str = Field(..., env="OPENAI_BASE_URL")
     OPENAI_MODEL: str = Field(..., env="OPENAI_MODEL")

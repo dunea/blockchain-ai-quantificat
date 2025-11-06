@@ -1,10 +1,8 @@
 import asyncio
-import os
 import sys
 from typing import Literal, Optional, Any
 
 import httpx
-
 from ccxt.async_support import okx
 from ccxt.base.types import Position
 from pydantic import BaseModel, Field
@@ -42,12 +40,15 @@ class SwapStopLossTakeProfit(BaseModel):
 
 class Trade:
     def __init__(self, exchange: okx, symbol: str, leverage: int, usdt_amount: int, mgn_mode: str, ai_endpoint: str,
-                 ai_api_key: str, ai_base_url: str, ai_model: str):
+                 ai_api_key: str, ai_base_url: str, ai_model: str, *, interval_minutes=15,
+                 stop_loss_interval_second=15):
         self._exchange = exchange
         self._symbol = symbol
         self._leverage = leverage
         self._usdt_amount = usdt_amount
         self._mgn_mode = mgn_mode
+        self._interval_minutes = interval_minutes
+        self._stop_loss_interval_second = stop_loss_interval_second
         self._ai_endpoint = ai_endpoint
         self._ai_api_key = ai_api_key
         self._ai_base_url = ai_base_url
@@ -55,19 +56,8 @@ class Trade:
         self._init_stop_loss: Optional[float] = None
         self._max_pnl: Optional[float] = None
         self._tag: str = "f1ee03b510d5SUDE"
-        self._log_messages: list[str] = []
         self._ai_timeframes = "5m,15m,1h,4h"
-
-    # 日志
-    def _log(self, msg: str):
-        self._log_messages.append(msg)
-
-    # 打印日志
-    def _print_log(self):
-        if len(self._log_messages) <= 0:
-            return
-        logger.info("\n" + "\n".join(self._log_messages))
-        self._log_messages.clear()
+        self._task_lock: asyncio.Lock = asyncio.Lock()
 
     # 初始化
     async def setup_exchange(self):
@@ -76,12 +66,12 @@ class Trade:
             # OKX设置杠杆
             await self._exchange.set_leverage(
                 self._leverage,
-                symbol,
+                self._symbol,
                 {'mgnMode': self._mgn_mode}  # 'cross'全仓模式，也可用'isolated'逐仓
             )
 
             # 设置持仓模式 (双向持仓)
-            await exchange.set_position_mode(False, symbol)
+            await exchange.set_position_mode(False, self._symbol)
         except:
             pass
 
@@ -211,7 +201,7 @@ class Trade:
                 entry_price = float(position['entryPrice'])
                 stop_loss = await self.analyze_stop_loss(direction, entry_price=entry_price)
                 self._init_stop_loss = stop_loss.stop_loss
-                self._log(f"{self._symbol} 重新AI分析止损结果: {stop_loss}")
+                logger.info(f"{self._symbol} - 重新AI分析止损结果: {stop_loss}")
             return None
 
         # 再清理一次，避免手动平仓数据未初始化
@@ -221,38 +211,38 @@ class Trade:
         # AI分析信号
         swap_direction = await self.analyze()
         if swap_direction.signal == 'hold':
-            self._log(f"{self._symbol}: 观望中...")
-            self._log(f"{self._symbol} AI分析结果: {swap_direction}")
+            logger.info(f"{self._symbol} - 观望中...")
+            logger.info(f"{self._symbol} - AI分析结果: {swap_direction}")
             return None
-        self._log(f"{self._symbol}: 开始交易...")
-        self._log(f"{self._symbol} AI分析结果: {swap_direction}")
+        logger.info(f"{self._symbol} - 开始交易...")
+        logger.info(f"{self._symbol} - AI分析结果: {swap_direction}")
 
         # AI分析止损价
         if swap_direction.signal == 'buy' or swap_direction.signal == 'sell':
             direction: Literal['long', 'short'] = 'long' if swap_direction.signal == 'buy' else 'short'
             stop_loss = await self.analyze_stop_loss(direction)
             self._init_stop_loss = stop_loss.stop_loss
-            self._log(f"{self._symbol} AI分析止损结果: {stop_loss}")
+            logger.info(f"{self._symbol} - AI分析止损结果: {stop_loss}")
 
         # 交易
         if swap_direction.signal == 'buy':
-            self._log(f"{self._symbol}: 开多仓...")
+            logger.info(f"{self._symbol} - 开多仓...")
             res = await exchange.create_market_order(
                 self._symbol,
                 'buy',
                 await self.usdt_to_contracts(self._symbol, self._usdt_amount, self._leverage),
                 params={'tag': self._tag, 'tdMode': self._mgn_mode}
             )
-            self._log(f"{self._symbol} 开多仓结果: {res}")
+            logger.info(f"{self._symbol} - 开多仓结果: {res}")
         elif swap_direction.signal == 'sell':
-            self._log(f"{self._symbol}: 开空仓...")
+            logger.info(f"{self._symbol} - 开空仓...")
             res = await exchange.create_market_order(
                 self._symbol,
                 'sell',
                 await self.usdt_to_contracts(self._symbol, self._usdt_amount, self._leverage),
                 params={'tag': self._tag, 'tdMode': self._mgn_mode}
             )
-            self._log(f"{self._symbol} 开空仓结果: {res}")
+            logger.info(f"{self._symbol} - 开空仓结果: {res}")
 
         return None
 
@@ -263,7 +253,7 @@ class Trade:
         if contracts == 0:
             return None
         elif side == "long":
-            self._log(f"平多止损...")
+            logger.info(f"{self._symbol} - 平多止损...")
             await self._exchange.create_market_order(
                 self._symbol,
                 'sell',
@@ -271,7 +261,7 @@ class Trade:
                 params={'reduceOnly': True, 'tag': self._tag, 'tdMode': self._mgn_mode}
             )
         elif side == "short":
-            self._log(f"平空止损...")
+            logger.info(f"{self._symbol} - 平空止损...")
             await self._exchange.create_market_order(
                 self._symbol,
                 'buy',
@@ -304,7 +294,7 @@ class Trade:
 
         # 判断是否亏损 20% 以上
         if pnl_ratio <= -0.2:
-            self._log("亏损 20% 以上, 平仓...")
+            logger.info(f"{self._symbol} - 亏损 20% 以上, 平仓...")
             return await self.stop_loss(position)
 
         # 最高盈利小于 20%
@@ -312,76 +302,83 @@ class Trade:
             # 判断是否达到初始止损价格
             if self._init_stop_loss is not None:
                 if side == "long" and mark_price <= self._init_stop_loss:
-                    self._log(f"根据初始止损价格 {self._init_stop_loss}, 平多仓...")
+                    logger.info(f"{self._symbol} - 根据初始止损价格: {self._init_stop_loss} - 平多仓...")
                     return await self.stop_loss(position)
                 elif side == "short" and mark_price >= self._init_stop_loss:
-                    self._log(f"根据初始止损价格 {self._init_stop_loss}, 平空仓...")
+                    logger.info(f"{self._symbol} - 根据初始止损价格: {self._init_stop_loss} - 平空仓...")
                     return await self.stop_loss(position)
 
         # 最高盈利 20% - 100% 之间
         elif max_pnl_ratio >= 0.2 and max_pnl_ratio < 1:
             if pnl <= self._max_pnl * 0.8:
-                self._log("最高盈利 20% - 100% 之间, 回撤 20%, 平仓...")
+                logger.info(f"{self._symbol} - 最高盈利 20% - 100% 之间, 回撤 20%, 平仓...")
                 return await self.stop_loss(position)
 
         # 最高盈利 100% 以上
         elif max_pnl_ratio >= 1:
             if pnl <= self._max_pnl * 0.75:
-                self._log("最高盈利 100% 以上, 回撤 25%, 平仓...")
+                logger.info(f"{self._symbol} - 最高盈利 100% 以上, 回撤 25%, 平仓...")
                 return await self.stop_loss(position)
 
     # 运行止损
-    async def run_stop_loss(self, interval_second: int = 15):
+    async def run_stop_loss(self):
         while True:
             try:
-                await self.execute_stop_loss()
+                async with self._task_lock:
+                    await self.execute_stop_loss()
             except Exception as e:
-                self._log(f"ERROR 运行止损 {self._symbol}: {e}")
-            self._print_log()
-            await asyncio.sleep(interval_second)
+                logger.error(e)
+            await asyncio.sleep(self._stop_loss_interval_second)
 
     # 运行交易
-    async def run_deal(self, interval_minutes: int = 15):
+    async def run_deal(self):
         while True:
             try:
-                await self.execute_deal()
+                async with self._task_lock:
+                    await self.execute_deal()
             except Exception as e:
-                self._log(f"ERROR 运行交易 {self._symbol}: {e}")
-            self._print_log()
-            await asyncio.sleep(60 * interval_minutes)
+                logger.error(e)
+            await asyncio.sleep(60 * self._interval_minutes)
 
     # 运行
     async def run(self):
         await self.setup_exchange()
         await asyncio.gather(
-            self.run_deal(settings.INTERVAL_MINUTES),
-            self.run_stop_loss(15),
+            self.run_deal(),
+            self.run_stop_loss(),
         )
 
 
-# 同时做这些币
-tracking_symbols: list[str] = [
-    'BTC/USDT:USDT',
-    'ETH/USDT:USDT',
-    'BNB/USDT:USDT',
-    'SOL/USDT:USDT',
-    'DOGE/USDT:USDT',
-    'XRP/USDT:USDT',
-]
-
 if __name__ == '__main__':
-    if settings.INTERVAL_MINUTES <= 0:
-        sys.exit("INTERVAL_MINUTES 必须大于 0")
-    elif settings.USDT_AMOUNT < 1:
-        sys.exit("USDT_AMOUNT 必须大于等于 1")
-    elif settings.LEVERAGE < 1:
-        sys.exit("LEVERAGE 必须大于等于 1")
+    tracking_symbols: list[str] = settings.SYMBOLS.split(',')
 
-    trades: list[Trade] = []
-    for symbol in tracking_symbols:
-        trades.append(
-            Trade(exchange, symbol, settings.LEVERAGE, settings.USDT_AMOUNT, settings.MGN_MODE, settings.AI_ENDPOINT,
-                  settings.OPENAI_API_KEY, settings.OPENAI_BASE_URL, settings.OPENAI_MODEL))
+    if settings.INTERVAL_MINUTES <= 0:
+        sys.exit("环境变量 INTERVAL_MINUTES 必须大于 0")
+    elif settings.USDT_AMOUNT < 1:
+        sys.exit("环境变量 USDT_AMOUNT 必须大于等于 1")
+    elif settings.LEVERAGE < 1:
+        sys.exit("环境变量 LEVERAGE 必须大于等于 1")
+    elif len(tracking_symbols) == 0:
+        sys.exit("环境变量 SYMBOLS 必须配置")
+    elif settings.STOP_LOSS_INTERVAL_SECOND < 0:
+        sys.exit("环境变量 STOP_LOSS_INTERVAL_SECOND 必须大于等于 0")
+
+    trades: list[Trade] = [
+        Trade(
+            exchange,
+            symbol,
+            settings.LEVERAGE,
+            settings.USDT_AMOUNT,
+            settings.MGN_MODE,
+            settings.AI_ENDPOINT,
+            settings.OPENAI_API_KEY,
+            settings.OPENAI_BASE_URL,
+            settings.OPENAI_MODEL,
+            interval_minutes=settings.INTERVAL_MINUTES,
+            stop_loss_interval_second=settings.STOP_LOSS_INTERVAL_SECOND,
+        )
+        for symbol in tracking_symbols
+    ]
 
 
     async def main():
