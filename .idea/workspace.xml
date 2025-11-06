@@ -18,7 +18,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="88a009d7-81a8-4ed9-98b6-ed89f61d3424" name="更改" comment="增加 AI 分析止损功能，优化交易开仓与止损逻辑，调整止损平仓条件，重构代码结构">
+    <list default="true" id="88a009d7-81a8-4ed9-98b6-ed89f61d3424" name="更改" comment="调整止损逻辑：亏损阈值提高至 20%，新增逐仓模式支持">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
@@ -123,7 +123,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1762359604320</updated>
-      <workItem from="1762359605384" duration="23842000" />
+      <workItem from="1762359605384" duration="27924000" />
     </task>
     <task id="LOCAL-00001" summary="初始化项目，添加核心功能逻辑与配置文件">
       <option name="closed" value="true" />
@@ -165,7 +165,15 @@
       <option name="project" value="LOCAL" />
       <updated>1762395854418</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="调整止损逻辑：亏损阈值提高至 20%，新增逐仓模式支持">
+      <option name="closed" value="true" />
+      <created>1762397569136</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1762397569136</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -189,9 +197,10 @@
     <MESSAGE value="更新 README 文档，新增 AI 分析代码仓库及测试接口文档链接" />
     <MESSAGE value="更新 README 文档，新增逐仓模式配置示例，优化 Git 设置" />
     <MESSAGE value="增加 AI 分析止损功能，优化交易开仓与止损逻辑，调整止损平仓条件，重构代码结构" />
-    <option name="LAST_COMMIT_MESSAGE" value="增加 AI 分析止损功能，优化交易开仓与止损逻辑，调整止损平仓条件，重构代码结构" />
+    <MESSAGE value="调整止损逻辑：亏损阈值提高至 20%，新增逐仓模式支持" />
+    <option name="LAST_COMMIT_MESSAGE" value="调整止损逻辑：亏损阈值提高至 20%，新增逐仓模式支持" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/blockchain_ai_quantificat$main.coverage" NAME="main 覆盖结果" MODIFIED="1762397336908" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/blockchain_ai_quantificat$main.coverage" NAME="main 覆盖结果" MODIFIED="1762401543066" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

@@ -358,7 +358,7 @@ class Trade:
         await self.setup_exchange()
         await asyncio.gather(
             self.run_deal(settings.INTERVAL_MINUTES),
-            self.run_stop_loss(15),
+            self.run_stop_loss(30),
         )
 
 
