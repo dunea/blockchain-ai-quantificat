@@ -12,10 +12,6 @@ from pydantic import BaseModel, Field
 from logger import logger
 from settings import settings
 
-# 设置异步 ccxt okx 代理
-os.environ['HTTP_PROXY'] = 'http://127.0.0.1:10808'
-os.environ['HTTPS_PROXY'] = 'http://127.0.0.1:10808'
-
 # ccxt okx 接口
 exchange = okx({
     'options': {
