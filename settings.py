@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = Field(..., env="OPENAI_API_KEY")
     OPENAI_BASE_URL: str = Field(..., env="OPENAI_BASE_URL")
     OPENAI_MODEL: str = Field(..., env="OPENAI_MODEL")
+    AI_TIMEFRAMES: str = Field(..., env="AI_TIMEFRAMES")
+    AI_COMPARE: int = Field(..., env="AI_COMPARE")
 
     model_config = {
         "extra": "ignore",

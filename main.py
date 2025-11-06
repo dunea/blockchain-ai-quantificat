@@ -41,7 +41,7 @@ class SwapStopLossTakeProfit(BaseModel):
 class Trade:
     def __init__(self, exchange: okx, symbol: str, leverage: int, usdt_amount: int, mgn_mode: str, ai_endpoint: str,
                  ai_api_key: str, ai_base_url: str, ai_model: str, *, interval_minutes=15,
-                 stop_loss_interval_second=15):
+                 stop_loss_interval_second=15, ai_timeframes: list[str] = None, ai_compare=3):
         self._exchange = exchange
         self._symbol = symbol
         self._leverage = leverage
@@ -56,7 +56,8 @@ class Trade:
         self._init_stop_loss: Optional[float] = None
         self._max_pnl: Optional[float] = None
         self._tag: str = "f1ee03b510d5SUDE"
-        self._ai_timeframes = "5m,15m,1h,4h"
+        self._ai_timeframes = ",".join(ai_timeframes) if ai_timeframes else "5m,15m,1h,4h"
+        self._ai_compare = ai_compare
         self._task_lock: asyncio.Lock = asyncio.Lock()
 
     # 初始化
@@ -145,7 +146,7 @@ class Trade:
                         'symbol': self._symbol,
                         'leverage': self._leverage,
                         'timeframes': self._ai_timeframes,
-                        'compare': 3
+                        'compare': self._ai_compare
                     },
                     headers={
                         'OPENAI-API-KEY': self._ai_api_key,
@@ -351,6 +352,7 @@ class Trade:
 
 if __name__ == '__main__':
     tracking_symbols: list[str] = settings.SYMBOLS.split(',')
+    ai_timeframes: list[str] = settings.AI_TIMEFRAMES.split(',')
 
     if settings.INTERVAL_MINUTES <= 0:
         sys.exit("环境变量 INTERVAL_MINUTES 必须大于 0")
@@ -360,6 +362,10 @@ if __name__ == '__main__':
         sys.exit("环境变量 LEVERAGE 必须大于等于 1")
     elif len(tracking_symbols) == 0:
         sys.exit("环境变量 SYMBOLS 必须配置")
+    elif len(ai_timeframes) == 0:
+        sys.exit("环境变量 AI_TIMEFRAMES 必须配置")
+    elif settings.AI_COMPARE <= 0:
+        sys.exit("环境变量 AI_COMPARE 必须大于 0")
     elif settings.STOP_LOSS_INTERVAL_SECOND < 0:
         sys.exit("环境变量 STOP_LOSS_INTERVAL_SECOND 必须大于等于 0")
 
@@ -376,6 +382,8 @@ if __name__ == '__main__':
             settings.OPENAI_MODEL,
             interval_minutes=settings.INTERVAL_MINUTES,
             stop_loss_interval_second=settings.STOP_LOSS_INTERVAL_SECOND,
+            ai_timeframes=ai_timeframes,
+            ai_compare=settings.AI_COMPARE,
         )
         for symbol in tracking_symbols
     ]

@@ -4,19 +4,23 @@
 
 ## 项目简介
 
-blockchain-ai-quantificat 是一个基于 Python 的小型项目，结合区块链与 AI/数据处理相关功能（项目具体实现请查看代码文件）。用于演示/开发量化分析或相关服务的原型。
+blockchain-ai-quantificat 是一个基于 Python 的小型项目，结合区块链与 AI/数据处理相关功能（项目具体实现请查看代码文件）。用于演示使用
+blockchain-analyse 开发量化分析或相关服务的原型。
 
-## AI分析代码仓库 + 测试接口文档
+## AI分析代码仓库 + 测试接口文档（blockchain-analyse）
 
 - blockchain-analyse Github仓库：https://github.com/dunea/blockchain-analyse
 - AI分析测试接口文档：https://blockchain-analyse.nuoyea.com/docs
 
 ## 主要特性
 
-- 使用 Python 实现的核心逻辑
-- 支持虚拟环境（virtualenv）管理依赖
-- 简单的日志与配置组织（参见 logger.py 与 settings.py）
-- 可在容器或本地环境运行
+- [x] 使用 AI 分析信号、止损
+- [x] 永续合约多币种量化
+- [x] 自定义保证金、杠杆、逐仓/全仓 ...
+- [x] 快速止损 + 阶梯止盈
+- [x] 可在容器或本地环境运行
+
+更多功能敬请期待...
 
 ## 环境要求
 
@@ -48,7 +52,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-- 在 `.env` 中填写所需的密钥、端点等配置（参见 settings.py）
+- 在 `.env` 中填写所需的密钥、端点等配置（参见 .env.example）
 
 5. 运行项目：
 
@@ -56,7 +60,7 @@ cp .env.example .env
 python main.py
 ```
 
-## 使用 Docker（如果已提供 Dockerfile）
+## 使用 Docker（推荐，开箱即用）
 
 1. 构建镜像：
 
@@ -64,7 +68,7 @@ python main.py
 docker build -t blockchain-ai-quantificat .
 ```
 
-2. 运行容器（根据需要映射端口和挂载配置）：
+2. 运行容器：
 
 ```shell script
 docker run --env-file .env -it --rm blockchain-ai-quantificat
@@ -74,17 +78,7 @@ docker run --env-file .env -it --rm blockchain-ai-quantificat
 
 - 全局配置入口：settings.py
 - 日志实现示例：logger.py
-- 环境变量通过 `.env` 读取（请不要把敏感信息提交到仓库）
-
-## 项目结构（简要）
-
-- main.py — 程序入口
-- settings.py — 配置
-- logger.py — 日志
-- Dockerfile — 容器构建
-- requirements.txt — 依赖列表
-- .env.example / .env — 环境变量示例与实际配置
-- README.md — 本文件
+- 环境变量通过 `.env`
 
 ## 开发
 
