@@ -321,6 +321,8 @@ class Trade:
                 logger.info(f"{self._symbol} - 最高盈利 100% 以上, 回撤 25%, 平仓...")
                 return await self.stop_loss(position)
 
+        return None
+
     # 运行止损
     async def run_stop_loss(self):
         while True:

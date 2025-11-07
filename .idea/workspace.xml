@@ -18,7 +18,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="88a009d7-81a8-4ed9-98b6-ed89f61d3424" name="更改" comment="新增变量 AI_TIMEFRAMES 与 AI_COMPARE，优化 AI 分析逻辑，完善参数校验与文档说明">
+    <list default="true" id="88a009d7-81a8-4ed9-98b6-ed89f61d3424" name="更改" comment="优化收益计算逻辑：修复未包含已实现盈亏的计算问题，更新覆盖率结果">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
@@ -126,7 +126,7 @@
       <workItem from="1762359605384" duration="31395000" />
       <workItem from="1762453429614" duration="12574000" />
       <workItem from="1762501872750" duration="745000" />
-      <workItem from="1762542843777" duration="723000" />
+      <workItem from="1762542843777" duration="2116000" />
     </task>
     <task id="LOCAL-00001" summary="初始化项目，添加核心功能逻辑与配置文件">
       <option name="closed" value="true" />
@@ -216,7 +216,15 @@
       <option name="project" value="LOCAL" />
       <updated>1762464638745</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="优化收益计算逻辑：修复未包含已实现盈亏的计算问题，更新覆盖率结果">
+      <option name="closed" value="true" />
+      <created>1762543576603</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1762543576603</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -246,7 +254,8 @@
     <MESSAGE value="调整止损逻辑：减少监控时间至 15 分钟，优化时间周期配置。" />
     <MESSAGE value="新增变量 STOP_LOSS_INTERVAL_SECOND 与 SYMBOLS，优化交易与止损逻辑，支持多币种配置" />
     <MESSAGE value="新增变量 AI_TIMEFRAMES 与 AI_COMPARE，优化 AI 分析逻辑，完善参数校验与文档说明" />
-    <option name="LAST_COMMIT_MESSAGE" value="新增变量 AI_TIMEFRAMES 与 AI_COMPARE，优化 AI 分析逻辑，完善参数校验与文档说明" />
+    <MESSAGE value="优化收益计算逻辑：修复未包含已实现盈亏的计算问题，更新覆盖率结果" />
+    <option name="LAST_COMMIT_MESSAGE" value="优化收益计算逻辑：修复未包含已实现盈亏的计算问题，更新覆盖率结果" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/blockchain_ai_quantificat$main.coverage" NAME="main 覆盖结果" MODIFIED="1762543518792" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
