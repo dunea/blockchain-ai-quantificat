@@ -287,7 +287,7 @@ class Trade:
 
         side = position["side"]
         initial_margin = float(position['initialMargin'])
-        pnl = float(position['unrealizedPnl'])
+        pnl = float(position['unrealizedPnl']) + float(position['realizedPnl'])
         mark_price = float(position['markPrice'])
         pnl_ratio = pnl / initial_margin
         self._max_pnl = pnl if self._max_pnl is None else max(self._max_pnl, pnl)
